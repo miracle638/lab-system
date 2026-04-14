@@ -72,18 +72,42 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ message: "未提供可更新字段" }, { status: 400 });
   }
 
-  const { data, error } = await client
+  // 先尝试完整更新（含 resolved_date）
+  let { data, error } = await client
     .from("maintenance_records")
     .update(patch)
     .eq("id", id)
     .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
     .single();
 
+  // 如果 resolved_date 列还未添加到数据库，降级为只更新其余字段
+  if (error?.message.includes("resolved_date")) {
+    const fallbackPatch = { ...patch };
+    delete fallbackPatch.resolved_date;
+    if (Object.keys(fallbackPatch).length > 0) {
+      const fallback = await client
+        .from("maintenance_records")
+        .update(fallbackPatch)
+        .eq("id", id)
+        .select("id,computer_id,computer_position,issue,status,reporter,report_date")
+        .single();
+      data = fallback.data ? { ...fallback.data, resolved_date: null } : null;
+      error = fallback.error;
+    } else {
+      error = null;
+      data = null;
+    }
+  }
+
   if (error) {
     if (error.message.includes("computer_position")) {
       return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 computer_position 字段" }, { status: 500 });
     }
     return NextResponse.json({ message: error.message }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ message: "更新失败，请稍后重试" }, { status: 500 });
   }
 
   return NextResponse.json({

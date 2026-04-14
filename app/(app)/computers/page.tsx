@@ -455,7 +455,6 @@ export default function ComputersPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">电脑配置管理</h1>
-      <p className="mt-1 text-slate-600">按实验室展示配置。即使当前为空，也会显示实验室行，管理员可直接在列表填写并保存。</p>
 
       {errorMessage && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

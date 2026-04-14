@@ -160,9 +160,6 @@ export default function ReportsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">学院实验室报表</h1>
-      <p className="mt-1 text-slate-600">
-        管理员手工录入统计数据：设备台套数、设备价值、每月使用分钟数、活动分钟数。
-      </p>
 
       <form onSubmit={addReport} className="mt-5 grid gap-3 rounded-xl bg-white p-4 border border-slate-200">
         {formError && (
@@ -287,12 +284,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {!canEdit && (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          当前为只读角色，仅可查看、筛选与导出报表。
-        </p>
-      )}
-
       <section className="mt-5 space-y-3">
         {filteredReports.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500">没有匹配的报表记录。</div>
@@ -304,7 +295,6 @@ export default function ReportsPage() {
               <article key={report.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-slate-500">月报记录</p>
                     {isEditing ? (
                       <div className="mt-1 flex flex-wrap gap-2">
                         <input

@@ -23,7 +23,6 @@ export default async function AppLayout({
       <aside className="border-r border-emerald-100/80 bg-white/70 px-5 py-6 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen">
         <Link href="/dashboard" className="block rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-cyan-50 px-4 py-4 transition hover:from-emerald-100 hover:to-cyan-100">
           <p className="text-xl font-bold tracking-tight text-slate-900">实验室资产系统</p>
-          <p className="mt-1 text-sm text-slate-600">直观掌握设备、维修与报表</p>
         </Link>
 
         <p className="mt-4 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -31,7 +30,6 @@ export default async function AppLayout({
         </p>
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white/90 p-3">
-          <p className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">导航菜单</p>
           <NavLinks items={navItems} />
         </div>
 

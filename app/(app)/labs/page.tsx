@@ -369,7 +369,6 @@ export default function LabsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">实验室管理</h1>
-      <p className="mt-1 text-slate-600">管理员可新增、编辑、删除实验室信息，并在本页直接查看实验室配置方案。</p>
 
       {errorMessage && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -537,7 +536,6 @@ export default function LabsPage() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-slate-500">实验室信息</p>
                     {isEditing ? (
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <input

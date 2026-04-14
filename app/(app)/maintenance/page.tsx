@@ -143,13 +143,20 @@ export default function MaintenancePage() {
 
     setSavingId(id);
     const previousStatus = target.status;
-    setRecords((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+    // 切换到已完成时自动写入今天日期；切回其他状态时清空
+    const today = new Date().toISOString().slice(0, 10);
+    const resolvedDate = status === "done" ? today : "";
+    setRecords((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, status, resolvedDate: resolvedDate || undefined } : item,
+      ),
+    );
 
     try {
       const response = await fetch(`/api/maintenance/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, resolvedDate }),
       });
       const result = (await response.json()) as {
         record?: MaintenanceRecord;
@@ -157,7 +164,11 @@ export default function MaintenancePage() {
       };
 
       if (!response.ok || !result.record) {
-        setRecords((prev) => prev.map((item) => (item.id === id ? { ...item, status: previousStatus } : item)));
+        setRecords((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, status: previousStatus, resolvedDate: target.resolvedDate } : item,
+          ),
+        );
         setLoadingError(result.message ?? "保存失败，状态已回滚");
         setSavingId(null);
         return;
@@ -166,7 +177,11 @@ export default function MaintenancePage() {
       setRecords((prev) => prev.map((item) => (item.id === id ? result.record as MaintenanceRecord : item)));
       setLoadingError("");
     } catch {
-      setRecords((prev) => prev.map((item) => (item.id === id ? { ...item, status: previousStatus } : item)));
+      setRecords((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, status: previousStatus, resolvedDate: target.resolvedDate } : item,
+        ),
+      );
       setLoadingError("保存失败，请检查网络后重试");
     } finally {
       setSavingId(null);
@@ -249,13 +264,10 @@ export default function MaintenancePage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">维修记录管理</h1>
-      <p className="mt-1 text-slate-600">按实验室登记故障机位，并跟踪维修进度与完成时间。</p>
-      <p className="mt-1 text-xs text-slate-500">新增时只需选实验室和机位，系统会自动关联该实验室已有配置记录。</p>
 
       {canEdit && (
         <form onSubmit={createRecord} className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
           <h2 className="text-base font-semibold text-slate-900">新增维修记录</h2>
-          <p className="mt-1 text-sm text-slate-500">先选实验室，再填写具体电脑位置与故障信息。</p>
 
           {createError && (
             <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{createError}</p>
@@ -332,12 +344,6 @@ export default function MaintenancePage() {
         </form>
       )}
 
-      {!canEdit && (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          当前为只读角色。请先使用管理员账号登录后再编辑维修状态。
-        </p>
-      )}
-
       {loadingError && (
         <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
           <p>{loadingError}</p>
@@ -371,8 +377,7 @@ export default function MaintenancePage() {
               <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-slate-500">维修工单</p>
-                    <h2 className="mt-1 text-base font-semibold text-slate-900">{labText}</h2>
+                    <h2 className="text-base font-semibold text-slate-900">{labText}</h2>
                   </div>
                   <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
                     报修日期：{item.reportDate}
@@ -404,7 +409,6 @@ export default function MaintenancePage() {
                 </div>
 
                 <div className="mt-4">
-                  <p className="mb-2 text-xs font-medium text-slate-500">当前状态：{repairStatusLabel[item.status]}</p>
                   <div className="flex flex-wrap gap-2">
                     {(Object.entries(repairStatusLabel) as [RepairStatus, string][]).map(([statusKey, label]) => (
                       <button
