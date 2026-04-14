@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f3f8f8;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-soft: #f8fbfb;
+  --line: #dbe5e6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-noto-sans-sc);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background:
+    radial-gradient(circle at 8% 5%, #dff6f1 0%, transparent 32%),
+    radial-gradient(circle at 85% 12%, #e8f3ff 0%, transparent 36%),
+    linear-gradient(180deg, #f5fbfa 0%, var(--background) 100%);
+  color: var(--foreground);
+  font-family: var(--font-noto-sans-sc), sans-serif;
+  font-weight: 430;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.surface-card {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface) 0%, #fcfefe 100%);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.35);
+}
+
+.soft-panel {
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  border-radius: 14px;
+}
+
+.hover-lift {
+  transition: transform 180ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 24px -20px rgba(15, 23, 42, 0.45);
+}
+
+.chip-switch {
+  transition:
+    transform 140ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.chip-switch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -14px rgba(15, 23, 42, 0.7);
+}
+
+.chip-switch:active {
+  transform: translateY(0);
+}
