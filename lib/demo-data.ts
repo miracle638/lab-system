@@ -10,6 +10,8 @@ export const labsSeed: Lab[] = [
     value: 960000,
     manager: "王老师",
     seatCount: 48,
+    usageArea: 280,
+    buildingArea: 320,
     notes: "双千兆交换，支持虚拟化实验",
   },
   {
@@ -21,6 +23,8 @@ export const labsSeed: Lab[] = [
     value: 880000,
     manager: "李老师",
     seatCount: 60,
+    usageArea: 300,
+    buildingArea: 350,
     notes: "配备投影与录播",
   },
   {
@@ -32,6 +36,8 @@ export const labsSeed: Lab[] = [
     value: 0,
     manager: "待指定",
     seatCount: 0,
+    usageArea: 0,
+    buildingArea: 0,
     notes: "基础信息待补充",
   },
   {
@@ -43,6 +49,8 @@ export const labsSeed: Lab[] = [
     value: 0,
     manager: "待指定",
     seatCount: 0,
+    usageArea: 0,
+    buildingArea: 0,
     notes: "基础信息待补充",
   },
   {
@@ -54,6 +62,8 @@ export const labsSeed: Lab[] = [
     value: 0,
     manager: "待指定",
     seatCount: 0,
+    usageArea: 0,
+    buildingArea: 0,
     notes: "基础信息待补充",
   },
   {
@@ -65,6 +75,8 @@ export const labsSeed: Lab[] = [
     value: 0,
     manager: "待指定",
     seatCount: 0,
+    usageArea: 0,
+    buildingArea: 0,
     notes: "基础信息待补充",
   },
 ];

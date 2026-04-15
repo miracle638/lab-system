@@ -10,6 +10,8 @@ type LabPatchPayload = {
   value?: number;
   manager?: string;
   seatCount?: number;
+  usageArea?: number;
+  buildingArea?: number;
   notes?: string;
 };
 
@@ -52,13 +54,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (body.value !== undefined) patch.value = Number(body.value);
   if (body.manager !== undefined) patch.manager = body.manager.trim();
   if (body.seatCount !== undefined) patch.seat_count = Number(body.seatCount);
+  if (body.usageArea !== undefined) patch.usage_area = Number(body.usageArea);
+  if (body.buildingArea !== undefined) patch.building_area = Number(body.buildingArea);
   if (body.notes !== undefined) patch.notes = body.notes.trim();
 
   const { data, error } = await client
     .from("labs")
     .update(patch)
     .eq("id", id)
-    .select("id,name,college,room_code,lab_number,value,manager,seat_count,notes")
+    .select("id,name,college,room_code,lab_number,value,manager,seat_count,usage_area,building_area,notes")
     .single();
 
   if (error) {
@@ -75,6 +79,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       value: Number(data.value ?? 0),
       manager: data.manager,
       seatCount: data.seat_count,
+      usageArea: Number(data.usage_area ?? 0),
+      buildingArea: Number(data.building_area ?? 0),
       notes: data.notes ?? "",
     },
   });

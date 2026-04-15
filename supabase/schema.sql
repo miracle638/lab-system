@@ -13,6 +13,8 @@ create table if not exists public.labs (
   value numeric(14,2) not null default 0 check (value >= 0),
   manager text not null,
   seat_count int not null check (seat_count >= 0),
+  usage_area numeric(10,2) not null default 0 check (usage_area >= 0),
+  building_area numeric(10,2) not null default 0 check (building_area >= 0),
   notes text,
   created_by uuid,
   created_at timestamptz not null default now()
@@ -38,6 +40,12 @@ alter table public.labs
 
 alter table public.labs
   add column if not exists lab_number text;
+
+alter table public.labs
+  add column if not exists usage_area numeric(10,2) not null default 0;
+
+alter table public.labs
+  add column if not exists building_area numeric(10,2) not null default 0;
 
 alter table public.computers
   add column if not exists c_drive_size text not null default '';
@@ -79,6 +87,18 @@ create table if not exists public.monthly_reports (
   unique(college, month)
 );
 
+create table if not exists public.monthly_room_reports (
+  id uuid primary key default gen_random_uuid(),
+  month date not null,
+  college text not null,
+  room_code text not null,
+  usage_minutes int not null check (usage_minutes >= 0),
+  active_minutes int not null check (active_minutes >= 0),
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  unique(month, room_code)
+);
+
 alter table public.maintenance_records
   add column if not exists computer_position text not null default '';
 
@@ -87,18 +107,33 @@ alter table public.labs enable row level security;
 alter table public.computers enable row level security;
 alter table public.maintenance_records enable row level security;
 alter table public.monthly_reports enable row level security;
+alter table public.monthly_room_reports enable row level security;
 
+drop policy if exists "viewer_can_read_profiles" on public.profiles;
 create policy "viewer_can_read_profiles" on public.profiles
   for select using (true);
+
+drop policy if exists "viewer_can_read_labs" on public.labs;
 create policy "viewer_can_read_labs" on public.labs
   for select using (true);
+
+drop policy if exists "viewer_can_read_computers" on public.computers;
 create policy "viewer_can_read_computers" on public.computers
   for select using (true);
+
+drop policy if exists "viewer_can_read_maintenance" on public.maintenance_records;
 create policy "viewer_can_read_maintenance" on public.maintenance_records
   for select using (true);
+
+drop policy if exists "viewer_can_read_reports" on public.monthly_reports;
 create policy "viewer_can_read_reports" on public.monthly_reports
   for select using (true);
 
+drop policy if exists "viewer_can_read_room_reports" on public.monthly_room_reports;
+create policy "viewer_can_read_room_reports" on public.monthly_room_reports
+  for select using (true);
+
+drop policy if exists "admin_can_modify_labs" on public.labs;
 create policy "admin_can_modify_labs" on public.labs
   for all using (exists (
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
@@ -106,6 +141,7 @@ create policy "admin_can_modify_labs" on public.labs
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
   ));
 
+drop policy if exists "admin_can_modify_computers" on public.computers;
 create policy "admin_can_modify_computers" on public.computers
   for all using (exists (
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
@@ -113,6 +149,7 @@ create policy "admin_can_modify_computers" on public.computers
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
   ));
 
+drop policy if exists "admin_can_modify_maintenance" on public.maintenance_records;
 create policy "admin_can_modify_maintenance" on public.maintenance_records
   for all using (exists (
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
@@ -120,7 +157,16 @@ create policy "admin_can_modify_maintenance" on public.maintenance_records
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
   ));
 
+drop policy if exists "admin_can_modify_reports" on public.monthly_reports;
 create policy "admin_can_modify_reports" on public.monthly_reports
+  for all using (exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+  )) with check (exists (
+    select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
+  ));
+
+drop policy if exists "admin_can_modify_room_reports" on public.monthly_room_reports;
+create policy "admin_can_modify_room_reports" on public.monthly_room_reports
   for all using (exists (
     select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'
   )) with check (exists (

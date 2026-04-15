@@ -12,6 +12,8 @@ export interface Lab {
   value: number;
   manager: string;
   seatCount: number;
+  usageArea: number;
+  buildingArea: number;
   notes?: string;
 }
 

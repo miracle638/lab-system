@@ -1,30 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+function getCredentialFromQuery(key: "username" | "password"): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const query = new URLSearchParams(window.location.search);
+  if (key === "username") {
+    return query.get("admin-username") ?? query.get("username") ?? "";
+  }
+
+  return query.get("admin-password") ?? query.get("password") ?? "";
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const autoLoginTriggeredRef = useRef(false);
+  const [username, setUsername] = useState(() => getCredentialFromQuery("username"));
+  const [password, setPassword] = useState(() => getCredentialFromQuery("password"));
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!username.trim() || !password.trim()) {
-      setErrorMessage("请输入管理员账号和密码");
-      return;
-    }
-
+  const submitLogin = useCallback(async (inputUsername: string, inputPassword: string) => {
     setSubmitting(true);
     setErrorMessage("");
 
     const response = await fetch("/api/admin-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: inputUsername, password: inputPassword }),
     });
 
     setSubmitting(false);
@@ -37,6 +44,48 @@ export default function LoginPage() {
     const query = new URLSearchParams(window.location.search);
     const next = query.get("next") || "/dashboard";
     router.push(next);
+  }, [router]);
+
+  const submitLoginWithoutState = useCallback(async (inputUsername: string, inputPassword: string) => {
+    const response = await fetch("/api/admin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: inputUsername, password: inputPassword }),
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const query = new URLSearchParams(window.location.search);
+    const next = query.get("next") || "/dashboard";
+    router.push(next);
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const query = new URLSearchParams(window.location.search);
+    const queryUsername = query.get("admin-username") ?? query.get("username") ?? "";
+    const queryPassword = query.get("admin-password") ?? query.get("password") ?? "";
+
+    if (queryUsername && queryPassword && !autoLoginTriggeredRef.current) {
+      autoLoginTriggeredRef.current = true;
+      void submitLoginWithoutState(queryUsername, queryPassword);
+    }
+  }, [submitLoginWithoutState]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!username.trim() || !password.trim()) {
+      setErrorMessage("请输入管理员账号和密码");
+      return;
+    }
+
+    await submitLogin(username, password);
   };
 
   return (

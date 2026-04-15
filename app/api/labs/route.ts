@@ -10,6 +10,8 @@ type LabPayload = {
   value: number;
   manager: string;
   seatCount: number;
+  usageArea: number;
+  buildingArea: number;
   notes?: string;
 };
 
@@ -49,7 +51,11 @@ export async function GET() {
   }
 
   const [{ data: labsData, error: labsError }, monitorQuery] = await Promise.all([
-    client.from("labs").select("id,name,college,room_code,lab_number,value,manager,seat_count,notes").order("college").order("room_code"),
+    client
+      .from("labs")
+      .select("id,name,college,room_code,lab_number,value,manager,seat_count,usage_area,building_area,notes")
+      .order("college")
+      .order("room_code"),
     client.from("computers").select("id,lab_id,cpu,ram,storage,monitor,c_drive_size,os"),
   ]);
 
@@ -84,6 +90,8 @@ export async function GET() {
     value: Number(row.value ?? 0),
     manager: row.manager,
     seatCount: row.seat_count,
+    usageArea: Number(row.usage_area ?? 0),
+    buildingArea: Number(row.building_area ?? 0),
     notes: row.notes ?? "",
   }));
 
@@ -127,10 +135,12 @@ export async function POST(request: Request) {
         value: Number(body.value ?? 0),
         manager: (body.manager ?? "待指定").trim(),
         seat_count: Number(body.seatCount ?? 0),
+        usage_area: Number(body.usageArea ?? 0),
+        building_area: Number(body.buildingArea ?? 0),
         notes: (body.notes ?? "").trim(),
       },
     ])
-    .select("id,name,college,room_code,lab_number,value,manager,seat_count,notes")
+    .select("id,name,college,room_code,lab_number,value,manager,seat_count,usage_area,building_area,notes")
     .single();
 
   if (error) {
@@ -147,6 +157,8 @@ export async function POST(request: Request) {
       value: Number(data.value ?? 0),
       manager: data.manager,
       seatCount: data.seat_count,
+      usageArea: Number(data.usage_area ?? 0),
+      buildingArea: Number(data.building_area ?? 0),
       notes: data.notes ?? "",
     },
   });

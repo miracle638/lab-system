@@ -32,6 +32,8 @@ export default function LabsPage() {
     value: "",
     manager: "",
     seatCount: "",
+    usageArea: "",
+    buildingArea: "",
     notes: "",
   });
   const [role] = useState(getRoleFromCookie);
@@ -45,6 +47,8 @@ export default function LabsPage() {
     value: 0,
     manager: "",
     seatCount: 0,
+    usageArea: 0,
+    buildingArea: 0,
     notes: "",
   });
 
@@ -157,6 +161,8 @@ export default function LabsPage() {
           "实验室房间号",
           "管理员",
           "座位数",
+          "使用面积",
+          "建筑面积",
           "实验室价值",
           "备注",
           "配置条数",
@@ -180,6 +186,8 @@ export default function LabsPage() {
             lab.roomCode,
             lab.manager,
             String(lab.seatCount),
+            String(lab.usageArea),
+            String(lab.buildingArea),
             String(lab.value),
             lab.notes ?? "",
             String(labComputers.length),
@@ -223,9 +231,21 @@ export default function LabsPage() {
     }
 
     const seatCount = Number(draft.seatCount);
+    const usageArea = Number(draft.usageArea);
+    const buildingArea = Number(draft.buildingArea);
     const value = Number(draft.value);
     if (!Number.isFinite(seatCount) || seatCount <= 0) {
       setErrorMessage("座位数必须为大于 0 的数字");
+      return;
+    }
+
+    if (!Number.isFinite(usageArea) || usageArea < 0) {
+      setErrorMessage("使用面积不能为负数");
+      return;
+    }
+
+    if (!Number.isFinite(buildingArea) || buildingArea < 0) {
+      setErrorMessage("建筑面积不能为负数");
       return;
     }
 
@@ -256,6 +276,8 @@ export default function LabsPage() {
         value: "",
         manager: "",
         seatCount: "",
+        usageArea: "",
+        buildingArea: "",
         notes: "",
       });
       setErrorMessage("");
@@ -276,6 +298,8 @@ export default function LabsPage() {
           editDraft.value !== current.value ||
           editDraft.manager !== current.manager ||
           editDraft.seatCount !== current.seatCount ||
+          editDraft.usageArea !== current.usageArea ||
+          editDraft.buildingArea !== current.buildingArea ||
           editDraft.notes !== (current.notes ?? ""));
 
       if (hasUnsavedChanges) {
@@ -293,6 +317,8 @@ export default function LabsPage() {
       value: lab.value,
       manager: lab.manager,
       seatCount: lab.seatCount,
+      usageArea: lab.usageArea,
+      buildingArea: lab.buildingArea,
       notes: lab.notes ?? "",
     });
   };
@@ -307,6 +333,16 @@ export default function LabsPage() {
 
     if (!Number.isFinite(editDraft.seatCount) || editDraft.seatCount <= 0) {
       setErrorMessage("座位数必须为大于 0 的数字");
+      return;
+    }
+
+    if (!Number.isFinite(editDraft.usageArea) || editDraft.usageArea < 0) {
+      setErrorMessage("使用面积不能为负数");
+      return;
+    }
+
+    if (!Number.isFinite(editDraft.buildingArea) || editDraft.buildingArea < 0) {
+      setErrorMessage("建筑面积不能为负数");
       return;
     }
 
@@ -480,7 +516,7 @@ export default function LabsPage() {
             disabled={!canEdit}
           />
         </div>
-        <div className="grid md:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-5 gap-3">
           <input
             className="rounded-lg border border-slate-300 px-3 py-2"
             placeholder="管理员"
@@ -494,6 +530,22 @@ export default function LabsPage() {
             placeholder="座位数"
             value={draft.seatCount}
             onChange={(e) => setDraft({ ...draft, seatCount: e.target.value })}
+            disabled={!canEdit}
+          />
+          <input
+            type="number"
+            className="rounded-lg border border-slate-300 px-3 py-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            placeholder="使用面积"
+            value={draft.usageArea}
+            onChange={(e) => setDraft({ ...draft, usageArea: e.target.value })}
+            disabled={!canEdit}
+          />
+          <input
+            type="number"
+            className="rounded-lg border border-slate-300 px-3 py-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            placeholder="建筑面积"
+            value={draft.buildingArea}
+            onChange={(e) => setDraft({ ...draft, buildingArea: e.target.value })}
             disabled={!canEdit}
           />
           <input
@@ -671,6 +723,34 @@ export default function LabsPage() {
                       />
                     ) : (
                       <span className="font-medium text-slate-800">{lab.seatCount}</span>
+                    )}
+                  </label>
+
+                  <label className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-600">
+                    <span className="mb-1 block text-xs text-slate-400">使用面积</span>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        value={editDraft.usageArea}
+                        onChange={(e) => setEditDraft({ ...editDraft, usageArea: Number(e.target.value) })}
+                      />
+                    ) : (
+                      <span className="font-medium text-slate-800">{lab.usageArea}</span>
+                    )}
+                  </label>
+
+                  <label className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-600">
+                    <span className="mb-1 block text-xs text-slate-400">建筑面积</span>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-slate-900 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        value={editDraft.buildingArea}
+                        onChange={(e) => setEditDraft({ ...editDraft, buildingArea: Number(e.target.value) })}
+                      />
+                    ) : (
+                      <span className="font-medium text-slate-800">{lab.buildingArea}</span>
                     )}
                   </label>
 

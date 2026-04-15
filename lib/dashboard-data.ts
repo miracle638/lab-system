@@ -9,6 +9,8 @@ export interface LabView {
   value: number;
   manager: string;
   seatCount: number;
+  usageArea: number;
+  buildingArea: number;
   notes: string;
 }
 
@@ -46,6 +48,8 @@ interface SupabaseLabRow {
   value: number;
   manager: string;
   seat_count: number;
+  usage_area: number;
+  building_area: number;
   notes: string | null;
 }
 
@@ -114,7 +118,11 @@ export async function getDashboardData(): Promise<DashboardData> {
   });
 
   const [{ data: labsData, error: labsError }, { data: maintenanceData, error: maintenanceError }, { data: latestReportData, error: reportError }] = await Promise.all([
-    supabase.from("labs").select("id,lab_number,name,college,room_code,value,manager,seat_count,notes").order("college").order("name"),
+    supabase
+      .from("labs")
+      .select("id,lab_number,name,college,room_code,value,manager,seat_count,usage_area,building_area,notes")
+      .order("college")
+      .order("name"),
     supabase.from("maintenance_records").select("computer_id,status"),
     supabase.from("monthly_reports").select("month,equipment_value,active_minutes").order("month", { ascending: false }).limit(1),
   ]);
@@ -163,6 +171,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     value: Number(row.value ?? 0),
     manager: row.manager,
     seatCount: row.seat_count,
+    usageArea: Number(row.usage_area ?? 0),
+    buildingArea: Number(row.building_area ?? 0),
     notes: row.notes ?? "",
   }));
 
