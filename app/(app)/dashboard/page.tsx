@@ -8,7 +8,7 @@ type DashboardPageProps = {
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const selectedCollege = resolvedSearchParams?.college ?? "all";
-  const { labs, computers, maintenance, latestReport, loadError } = await getDashboardData();
+  const { labs, computers, maintenance, latestReport, loadError } = await getDashboardData(selectedCollege);
 
   const totalComputerCount = labs.reduce((sum, lab) => sum + lab.seatCount, 0);
   const faultCount = maintenance.filter((item) => item.status === "pending" || item.status === "in_progress").length;

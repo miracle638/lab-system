@@ -86,6 +86,7 @@ interface SupabaseMaintenanceRow {
 }
 
 interface SupabaseReportRow {
+  college: string;
   month: string;
   equipment_value: number;
   active_minutes: number;
@@ -99,7 +100,7 @@ export interface DashboardData {
   loadError: string | null;
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(selectedCollege = "all"): Promise<DashboardData> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -117,14 +118,13 @@ export async function getDashboardData(): Promise<DashboardData> {
     auth: { persistSession: false },
   });
 
-  const [{ data: labsData, error: labsError }, { data: maintenanceData, error: maintenanceError }, { data: latestReportData, error: reportError }] = await Promise.all([
+  const [{ data: labsData, error: labsError }, { data: maintenanceData, error: maintenanceError }] = await Promise.all([
     supabase
       .from("labs")
       .select("id,lab_number,name,college,room_code,value,manager,seat_count,usage_area,building_area,notes")
       .order("college")
       .order("name"),
     supabase.from("maintenance_records").select("computer_id,status"),
-    supabase.from("monthly_reports").select("month,equipment_value,active_minutes").order("month", { ascending: false }).limit(1),
   ]);
 
   let computersData: SupabaseComputerRow[] = [];
@@ -147,8 +147,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     computersError = { message: monitorQuery.error.message };
   }
 
-  if (labsError || computersError || maintenanceError || reportError) {
-    const details = [labsError, computersError, maintenanceError, reportError]
+  if (labsError || computersError || maintenanceError) {
+    const details = [labsError, computersError, maintenanceError]
       .filter((item): item is { message: string } => Boolean(item))
       .map((item) => item.message)
       .join("; ");
@@ -195,14 +195,55 @@ export async function getDashboardData(): Promise<DashboardData> {
     status: row.status,
   }));
 
-  const latestRow = ((latestReportData ?? []) as SupabaseReportRow[])[0];
-  const latestReport = latestRow
-    ? {
-        month: latestRow.month,
-        equipmentValue: Number(latestRow.equipment_value ?? 0),
-        activeMinutes: latestRow.active_minutes,
-      }
-    : null;
+  let latestReport: LatestReportView | null = null;
+
+  let latestMonthQuery = supabase.from("monthly_reports").select("month").order("month", { ascending: false }).limit(1);
+  if (selectedCollege !== "all") {
+    latestMonthQuery = latestMonthQuery.eq("college", selectedCollege);
+  }
+
+  const { data: latestMonthData, error: latestMonthError } = await latestMonthQuery;
+  if (latestMonthError) {
+    return {
+      labs: [],
+      computers: [],
+      maintenance: [],
+      latestReport: null,
+      loadError: `数据库读取失败：${latestMonthError.message}`,
+    };
+  }
+
+  const latestMonth = latestMonthData?.[0]?.month;
+  if (latestMonth) {
+    let latestRowsQuery = supabase
+      .from("monthly_reports")
+      .select("college,month,equipment_value,active_minutes")
+      .eq("month", latestMonth);
+
+    if (selectedCollege !== "all") {
+      latestRowsQuery = latestRowsQuery.eq("college", selectedCollege);
+    }
+
+    const { data: latestRowsData, error: latestRowsError } = await latestRowsQuery;
+    if (latestRowsError) {
+      return {
+        labs: [],
+        computers: [],
+        maintenance: [],
+        latestReport: null,
+        loadError: `数据库读取失败：${latestRowsError.message}`,
+      };
+    }
+
+    const latestRows = (latestRowsData ?? []) as SupabaseReportRow[];
+    if (latestRows.length > 0) {
+      latestReport = {
+        month: latestMonth,
+        equipmentValue: latestRows.reduce((sum, row) => sum + Number(row.equipment_value ?? 0), 0),
+        activeMinutes: latestRows.reduce((sum, row) => sum + Number(row.active_minutes ?? 0), 0),
+      };
+    }
+  }
 
   return {
     labs,

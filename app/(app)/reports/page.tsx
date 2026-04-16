@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { labsSeed } from "@/lib/demo-data";
@@ -233,6 +233,28 @@ export default function ReportsPage() {
   const [rangeStartMonth, setRangeStartMonth] = useState("");
   const [rangeEndMonth, setRangeEndMonth] = useState("");
   const [roomChartSort, setRoomChartSort] = useState<"usage" | "active" | "ratio">("active");
+
+  const deferredCollegeFilter = useDeferredValue(collegeFilter);
+  const deferredRangeStartMonth = useDeferredValue(rangeStartMonth);
+  const deferredRangeEndMonth = useDeferredValue(rangeEndMonth);
+  const normalizedCollegeFilter = useMemo(
+    () => deferredCollegeFilter.trim().toLowerCase(),
+    [deferredCollegeFilter]
+  );
+
+  const handleRangeStartMonthChange = (nextStart: string) => {
+    setRangeStartMonth(nextStart);
+    if (nextStart && rangeEndMonth && nextStart > rangeEndMonth) {
+      setRangeEndMonth(nextStart);
+    }
+  };
+
+  const handleRangeEndMonthChange = (nextEnd: string) => {
+    setRangeEndMonth(nextEnd);
+    if (nextEnd && rangeStartMonth && nextEnd < rangeStartMonth) {
+      setRangeStartMonth(nextEnd);
+    }
+  };
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -535,17 +557,15 @@ export default function ReportsPage() {
   };
 
   const filteredReports = useMemo(() => {
-    const normalizedCollege = collegeFilter.trim().toLowerCase();
-
     return reports
       .filter((report) => {
         const matchCollege =
-          !normalizedCollege || report.college.toLowerCase().includes(normalizedCollege);
-        const matchRange = matchesMonthRange(report.month, rangeStartMonth, rangeEndMonth);
+          !normalizedCollegeFilter || report.college.toLowerCase().includes(normalizedCollegeFilter);
+        const matchRange = matchesMonthRange(report.month, deferredRangeStartMonth, deferredRangeEndMonth);
         return matchCollege && matchRange;
       })
       .sort((a, b) => b.month.localeCompare(a.month));
-  }, [reports, collegeFilter, rangeStartMonth, rangeEndMonth]);
+  }, [reports, normalizedCollegeFilter, deferredRangeStartMonth, deferredRangeEndMonth]);
 
   const roomDetailsScope = useMemo(() => {
     const range = normalizeRange(rangeStartMonth, rangeEndMonth);
@@ -561,15 +581,27 @@ export default function ReportsPage() {
     return "全部月份";
   }, [rangeStartMonth, rangeEndMonth]);
 
-  const filteredRoomMetrics = useMemo(() => {
-    const normalizedCollege = collegeFilter.trim().toLowerCase();
+  const effectiveRangeText = useMemo(() => {
+    const range = normalizeRange(rangeStartMonth, rangeEndMonth);
+    if (range.start && range.end) {
+      return `${range.start} ~ ${range.end}`;
+    }
+    if (range.start) {
+      return `${range.start} 起`;
+    }
+    if (range.end) {
+      return `至 ${range.end}`;
+    }
+    return "全部月份";
+  }, [rangeStartMonth, rangeEndMonth]);
 
+  const filteredRoomMetrics = useMemo(() => {
     return roomMonthlyMetrics.filter((item) => {
-      const matchCollege = !normalizedCollege || item.college.toLowerCase().includes(normalizedCollege);
-      const matchRange = matchesMonthRange(item.month, rangeStartMonth, rangeEndMonth);
+      const matchCollege = !normalizedCollegeFilter || item.college.toLowerCase().includes(normalizedCollegeFilter);
+      const matchRange = matchesMonthRange(item.month, deferredRangeStartMonth, deferredRangeEndMonth);
       return matchCollege && matchRange;
     });
-  }, [roomMonthlyMetrics, collegeFilter, rangeStartMonth, rangeEndMonth]);
+  }, [roomMonthlyMetrics, normalizedCollegeFilter, deferredRangeStartMonth, deferredRangeEndMonth]);
 
   const roomDetailsRows = useMemo(() => {
     const byRoom = new Map<string, { usageMinutes: number; activeMinutes: number }>();
@@ -581,10 +613,8 @@ export default function ReportsPage() {
       byRoom.set(key, current);
     }
 
-    const normalizedCollege = collegeFilter.trim().toLowerCase();
-
     return [...allLabs]
-      .filter((lab) => !normalizedCollege || lab.college.toLowerCase().includes(normalizedCollege))
+      .filter((lab) => !normalizedCollegeFilter || lab.college.toLowerCase().includes(normalizedCollegeFilter))
       .sort((a, b) => a.roomCode.localeCompare(b.roomCode))
       .map((lab) => {
         const hit = byRoom.get(normalizeRoomCode(lab.roomCode));
@@ -599,12 +629,11 @@ export default function ReportsPage() {
           ratio,
         };
       });
-  }, [allLabs, collegeFilter, filteredRoomMetrics]);
+  }, [allLabs, normalizedCollegeFilter, filteredRoomMetrics]);
 
   const summary = useMemo(() => {
-    const normalizedCollege = collegeFilter.trim().toLowerCase();
     const labsForSummary = allLabs.filter(
-      (lab) => !normalizedCollege || lab.college.toLowerCase().includes(normalizedCollege)
+      (lab) => !normalizedCollegeFilter || lab.college.toLowerCase().includes(normalizedCollegeFilter)
     );
 
     const totalLabCount = labsForSummary.length;
@@ -622,7 +651,7 @@ export default function ReportsPage() {
       activeRatio,
       activeRate,
     };
-  }, [allLabs, collegeFilter, filteredReports]);
+  }, [allLabs, normalizedCollegeFilter, filteredReports]);
 
   const trendData = useMemo(() => {
     const byMonth = new Map<string, { usageMinutes: number; activeMinutes: number }>();
@@ -933,14 +962,16 @@ export default function ReportsPage() {
             type="month"
             className="rounded-lg border border-slate-300 px-3 py-2"
             value={rangeStartMonth}
-            onChange={(e) => setRangeStartMonth(e.target.value)}
+            max={rangeEndMonth || undefined}
+            onChange={(e) => handleRangeStartMonthChange(e.target.value)}
             placeholder="起始月"
           />
           <input
             type="month"
             className="rounded-lg border border-slate-300 px-3 py-2"
             value={rangeEndMonth}
-            onChange={(e) => setRangeEndMonth(e.target.value)}
+            min={rangeStartMonth || undefined}
+            onChange={(e) => handleRangeEndMonthChange(e.target.value)}
             placeholder="结束月"
           />
         </div>
@@ -965,6 +996,7 @@ export default function ReportsPage() {
             导出 CSV
           </button>
         </div>
+        <p className="text-xs text-slate-500 md:col-span-3">当前生效月份范围：{effectiveRangeText}</p>
       </div>
 
       <div className="report-summary mt-5 grid gap-3 md:grid-cols-6">
