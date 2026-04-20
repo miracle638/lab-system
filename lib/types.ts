@@ -2,6 +2,7 @@ export type UserRole = "admin" | "viewer";
 
 export type ComputerStatus = "running" | "idle" | "fault" | "offline";
 export type RepairStatus = "pending" | "in_progress" | "done";
+export type AiAnalysisStatus = "pending" | "confirmed" | "edited";
 
 export interface Lab {
   id: string;
@@ -43,6 +44,15 @@ export interface MaintenanceRecord {
   reporter: string;
   reportDate: string;
   resolvedDate?: string;
+  aiCategory?: string;
+  aiConfidence?: number;
+  aiStatus?: AiAnalysisStatus;
+  aiIsHardware?: boolean;
+  aiIsRecurrent?: boolean;
+  aiRecurGapDays?: number;
+  aiDeviceKey?: string;
+  aiAnalyzedAt?: string;
+  aiVersion?: string;
 }
 
 export interface MonthlyReport {

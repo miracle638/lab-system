@@ -72,6 +72,15 @@ create table if not exists public.maintenance_records (
   reporter text not null,
   report_date date not null,
   resolved_date date,
+  ai_category text not null default '',
+  ai_confidence numeric(5,4) not null default 0,
+  ai_status text not null default 'pending' check (ai_status in ('pending', 'confirmed', 'edited')),
+  ai_is_hardware boolean not null default false,
+  ai_is_recurrent boolean not null default false,
+  ai_recur_gap_days int,
+  ai_device_key text not null default '',
+  ai_analyzed_at timestamptz,
+  ai_version text not null default '',
   created_at timestamptz not null default now()
 );
 
@@ -105,6 +114,55 @@ alter table public.maintenance_records
 
 alter table public.maintenance_records
   add column if not exists handling_method text not null default '';
+
+alter table public.maintenance_records
+  add column if not exists ai_category text not null default '';
+
+alter table public.maintenance_records
+  add column if not exists ai_confidence numeric(5,4) not null default 0;
+
+alter table public.maintenance_records
+  add column if not exists ai_status text not null default 'pending';
+
+alter table public.maintenance_records
+  add column if not exists ai_is_hardware boolean not null default false;
+
+alter table public.maintenance_records
+  add column if not exists ai_is_recurrent boolean not null default false;
+
+alter table public.maintenance_records
+  add column if not exists ai_recur_gap_days int;
+
+alter table public.maintenance_records
+  add column if not exists ai_device_key text not null default '';
+
+alter table public.maintenance_records
+  add column if not exists ai_analyzed_at timestamptz;
+
+alter table public.maintenance_records
+  add column if not exists ai_version text not null default '';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'maintenance_records_ai_status_check'
+  ) then
+    alter table public.maintenance_records
+      add constraint maintenance_records_ai_status_check
+      check (ai_status in ('pending', 'confirmed', 'edited'));
+  end if;
+end $$;
+
+create index if not exists idx_maintenance_records_ai_category
+  on public.maintenance_records (ai_category);
+
+create index if not exists idx_maintenance_records_report_date
+  on public.maintenance_records (report_date);
+
+create index if not exists idx_maintenance_records_ai_device_category_date
+  on public.maintenance_records (ai_device_key, ai_category, report_date);
 
 alter table public.profiles enable row level security;
 alter table public.labs enable row level security;

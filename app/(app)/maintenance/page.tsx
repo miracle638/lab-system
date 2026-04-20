@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { maintenanceSeed } from "@/lib/demo-data";
 import type { MaintenanceRecord, RepairStatus } from "@/lib/types";
 
@@ -64,6 +64,28 @@ type EditRecordDraft = {
   resolvedDate: string;
 };
 
+type AiTopCategory = {
+  category: string;
+  count: number;
+};
+
+type AiSummary = {
+  total: number;
+  topCategories: AiTopCategory[];
+  recurrence: {
+    recurrentCount: number;
+    recurrentRate: number;
+    avgGapDays: number;
+    minGapDays: number;
+  };
+  issueTypeRatio: {
+    hardwareCount: number;
+    softwareCount: number;
+    hardwareRate: number;
+    softwareRate: number;
+  };
+};
+
 function buildEditDraft(record: MaintenanceRecord): EditRecordDraft {
   return {
     computerPosition: record.computerPosition,
@@ -93,6 +115,10 @@ export default function MaintenancePage() {
   const [reportDateEndFilter, setReportDateEndFilter] = useState("");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<RepairStatus | "all">("all");
+  const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
+  const [aiRecurrenceDays, setAiRecurrenceDays] = useState(7);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
   const [role] = useState(getRoleFromCookie);
   const canEdit = role === "admin";
   const [draft, setDraft] = useState<NewRecordDraft>({
@@ -191,6 +217,73 @@ export default function MaintenancePage() {
   useEffect(() => {
     void loadRecords();
   }, []);
+
+  const loadAiSummary = useCallback(async () => {
+    try {
+      const query = new URLSearchParams();
+      query.set("topN", "5");
+
+      if (roomFilter !== "all") query.set("roomCode", roomFilter);
+      if (reportDateStartFilter) query.set("fromDate", reportDateStartFilter);
+      if (reportDateEndFilter) query.set("toDate", reportDateEndFilter);
+
+      const response = await fetch(`/api/maintenance/ai/summary?${query.toString()}`, { cache: "no-store" });
+      const result = (await response.json()) as {
+        message?: string;
+      } & Partial<AiSummary>;
+
+      if (!response.ok) {
+        setAiMessage(result.message ?? "AI 汇总读取失败");
+        return;
+      }
+
+      setAiSummary(result as AiSummary);
+    } catch {
+      setAiMessage("AI 汇总读取失败，请检查网络后重试");
+    }
+  }, [roomFilter, reportDateStartFilter, reportDateEndFilter]);
+
+  useEffect(() => {
+    void loadAiSummary();
+  }, [loadAiSummary]);
+
+  const runAiAnalyze = async () => {
+    if (!canEdit) return;
+    setAiLoading(true);
+    setAiMessage("");
+
+    try {
+      const response = await fetch("/api/maintenance/ai/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recurrenceDays: aiRecurrenceDays,
+          roomCode: roomFilter === "all" ? undefined : roomFilter,
+          fromDate: reportDateStartFilter || undefined,
+          toDate: reportDateEndFilter || undefined,
+        }),
+      });
+
+      const result = (await response.json()) as {
+        message?: string;
+        analyzed?: number;
+        recurrentCount?: number;
+      };
+
+      if (!response.ok) {
+        setAiMessage(result.message ?? "AI 分析失败");
+        setAiLoading(false);
+        return;
+      }
+
+      setAiMessage(`AI 分析完成：处理 ${result.analyzed ?? 0} 条，复发 ${result.recurrentCount ?? 0} 条`);
+      await Promise.all([loadRecords(), loadAiSummary()]);
+    } catch {
+      setAiMessage("AI 分析失败，请检查网络后重试");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const updateStatus = async (id: string, status: RepairStatus) => {
     if (!canEdit) return;
@@ -694,6 +787,67 @@ export default function MaintenancePage() {
             共 {filteredRecords.length} 条
           </span>
         </div>
+      </section>
+
+      <section className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-900">AI 智能分析（Beta）</h3>
+          <label className="ml-2 flex items-center gap-1 text-xs text-slate-600">
+            <span>复发阈值</span>
+            <select
+              value={aiRecurrenceDays}
+              onChange={(e) => setAiRecurrenceDays(Number(e.target.value))}
+              className="h-7 rounded border border-slate-300 px-2"
+            >
+              <option value={3}>3天</option>
+              <option value={7}>7天</option>
+              <option value={14}>14天</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => void runAiAnalyze()}
+            disabled={!canEdit || aiLoading || loading}
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {aiLoading ? "分析中..." : "执行AI分析"}
+          </button>
+          {aiMessage ? <span className="text-xs text-slate-600">{aiMessage}</span> : null}
+        </div>
+
+        {aiSummary ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="text-slate-500">分析样本</p>
+              <p className="mt-1 text-base font-semibold">{aiSummary.total}</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="text-slate-500">复发率</p>
+              <p className="mt-1 text-base font-semibold">{aiSummary.recurrence.recurrentRate}%</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="text-slate-500">硬件占比</p>
+              <p className="mt-1 text-base font-semibold">{aiSummary.issueTypeRatio.hardwareRate}%</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="text-slate-500">平均复发间隔</p>
+              <p className="mt-1 text-base font-semibold">{aiSummary.recurrence.avgGapDays} 天</p>
+            </div>
+          </div>
+        ) : null}
+
+        {aiSummary && aiSummary.topCategories.length > 0 ? (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+            <p className="font-medium text-slate-600">Top 故障类别</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {aiSummary.topCategories.map((item) => (
+                <span key={item.category} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">
+                  {item.category}：{item.count}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-5 space-y-3">
