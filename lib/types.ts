@@ -38,6 +38,7 @@ export interface MaintenanceRecord {
   computerId: string;
   computerPosition: string;
   issue: string;
+  handlingMethod?: string;
   status: RepairStatus;
   reporter: string;
   reportDate: string;

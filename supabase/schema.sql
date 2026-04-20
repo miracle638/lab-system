@@ -67,6 +67,7 @@ create table if not exists public.maintenance_records (
   computer_id uuid not null references public.computers(id) on delete cascade,
   computer_position text not null default '',
   issue text not null,
+  handling_method text not null default '',
   status text not null check (status in ('pending', 'in_progress', 'done')) default 'pending',
   reporter text not null,
   report_date date not null,
@@ -101,6 +102,9 @@ create table if not exists public.monthly_room_reports (
 
 alter table public.maintenance_records
   add column if not exists computer_position text not null default '';
+
+alter table public.maintenance_records
+  add column if not exists handling_method text not null default '';
 
 alter table public.profiles enable row level security;
 alter table public.labs enable row level security;

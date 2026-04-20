@@ -6,6 +6,7 @@ import type { RepairStatus } from "@/lib/types";
 type MaintenancePatchPayload = {
   computerPosition?: string;
   issue?: string;
+  handlingMethod?: string;
   status?: RepairStatus;
   reporter?: string;
   reportDate?: string;
@@ -50,6 +51,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   if (body.computerPosition !== undefined) patch.computer_position = body.computerPosition.trim();
   if (body.issue !== undefined) patch.issue = body.issue.trim();
+  if (body.handlingMethod !== undefined) patch.handling_method = body.handlingMethod.trim();
   if (body.status !== undefined) patch.status = body.status;
   if (body.reporter !== undefined) patch.reporter = body.reporter.trim();
   if (body.reportDate !== undefined) {
@@ -77,7 +79,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .from("maintenance_records")
     .update(patch)
     .eq("id", id)
-    .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+    .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
     .single();
 
   // 如果 resolved_date 列还未添加到数据库，降级为只更新其余字段
@@ -89,7 +91,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         .from("maintenance_records")
         .update(fallbackPatch)
         .eq("id", id)
-        .select("id,computer_id,computer_position,issue,status,reporter,report_date")
+        .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date")
         .single();
       data = fallback.data ? { ...fallback.data, resolved_date: null } : null;
       error = fallback.error;
@@ -99,9 +101,29 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
   }
 
+  if (error?.message.includes("handling_method")) {
+    const fallbackPatch = { ...patch };
+    delete fallbackPatch.handling_method;
+    if (Object.keys(fallbackPatch).length > 0) {
+      const fallback = await client
+        .from("maintenance_records")
+        .update(fallbackPatch)
+        .eq("id", id)
+        .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+        .single();
+      data = fallback.data ? { ...fallback.data, handling_method: "" } : null;
+      error = fallback.error;
+    } else {
+      return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 handling_method 字段" }, { status: 500 });
+    }
+  }
+
   if (error) {
     if (error.message.includes("computer_position")) {
       return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 computer_position 字段" }, { status: 500 });
+    }
+    if (error.message.includes("handling_method")) {
+      return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 handling_method 字段" }, { status: 500 });
     }
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
@@ -116,6 +138,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       computerId: data.computer_id,
       computerPosition: data.computer_position ?? "",
       issue: data.issue,
+      handlingMethod: data.handling_method ?? "",
       status: data.status,
       reporter: data.reporter,
       reportDate: data.report_date,

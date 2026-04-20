@@ -7,6 +7,7 @@ type MaintenanceCreatePayload = {
   computerId: string;
   computerPosition: string;
   issue: string;
+  handlingMethod?: string;
   status?: RepairStatus;
   reporter?: string;
   reportDate: string;
@@ -43,7 +44,7 @@ export async function GET() {
 
   const positionQuery = await client
     .from("maintenance_records")
-    .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+    .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
     .order("report_date", { ascending: false });
 
   let data = positionQuery.data;
@@ -58,6 +59,20 @@ export async function GET() {
     data = (fallbackQuery.data ?? []).map((row) => ({
       ...row,
       computer_position: "",
+      handling_method: "",
+    }));
+    error = fallbackQuery.error;
+  }
+
+  if (error?.message.includes("handling_method")) {
+    const fallbackQuery = await client
+      .from("maintenance_records")
+      .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+      .order("report_date", { ascending: false });
+
+    data = (fallbackQuery.data ?? []).map((row) => ({
+      ...row,
+      handling_method: "",
     }));
     error = fallbackQuery.error;
   }
@@ -71,6 +86,7 @@ export async function GET() {
     computerId: row.computer_id,
     computerPosition: row.computer_position ?? "",
     issue: row.issue,
+    handlingMethod: row.handling_method ?? "",
     status: row.status,
     reporter: row.reporter,
     reportDate: row.report_date,
@@ -110,18 +126,22 @@ export async function POST(request: Request) {
         computer_id: body.computerId,
         computer_position: body.computerPosition.trim(),
         issue: body.issue.trim(),
+        handling_method: body.handlingMethod?.trim() ?? "",
         status: body.status ?? "pending",
         reporter: body.reporter?.trim() || "管理员",
         report_date: body.reportDate,
         resolved_date: body.resolvedDate?.trim() ? body.resolvedDate : null,
       },
     ])
-    .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+    .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
     .single();
 
   if (error) {
     if (error.message.includes("computer_position")) {
       return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 computer_position 字段" }, { status: 500 });
+    }
+    if (error.message.includes("handling_method")) {
+      return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 handling_method 字段" }, { status: 500 });
     }
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
@@ -132,6 +152,7 @@ export async function POST(request: Request) {
       computerId: data.computer_id,
       computerPosition: data.computer_position ?? "",
       issue: data.issue,
+      handlingMethod: data.handling_method ?? "",
       status: data.status,
       reporter: data.reporter,
       reportDate: data.report_date,
