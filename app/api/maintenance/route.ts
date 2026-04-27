@@ -1,11 +1,14 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import type { RepairStatus } from "@/lib/types";
+import type { FaultCause, FaultNature, IssueType, RepairStatus } from "@/lib/types";
 
 type MaintenanceCreatePayload = {
   computerId: string;
   computerPosition: string;
+  issueType?: IssueType;
+  faultNature?: FaultNature;
+  faultCause?: FaultCause;
   issue: string;
   handlingMethod?: string;
   status?: RepairStatus;
@@ -13,6 +16,24 @@ type MaintenanceCreatePayload = {
   reportDate: string;
   resolvedDate?: string;
 };
+
+const issueTypes: IssueType[] = [
+  "blue_screen",
+  "black_screen",
+  "monitor_no_display",
+  "monitor_artifact",
+  "reboot_loop",
+  "stuck_logo",
+  "cannot_boot",
+  "slow_performance",
+  "network_issue",
+  "audio_issue",
+  "cannot_power_on",
+  "other",
+];
+
+const faultNatures: FaultNature[] = ["hardware", "software", "other"];
+const faultCauses: FaultCause[] = ["ssd", "hdd", "memory", "mainboard", "fan", "monitor", "power_switch", "os", "other"];
 
 function getSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -44,7 +65,7 @@ export async function GET() {
 
   const positionQuery = await client
     .from("maintenance_records")
-    .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
+    .select("id,computer_id,computer_position,issue_type,fault_nature,fault_cause,issue,handling_method,status,reporter,report_date,resolved_date")
     .order("report_date", { ascending: false });
 
   let data = positionQuery.data;
@@ -53,7 +74,7 @@ export async function GET() {
   if (error?.message.includes("computer_position")) {
     const fallbackQuery = await client
       .from("maintenance_records")
-      .select("id,computer_id,issue,status,reporter,report_date,resolved_date")
+      .select("id,computer_id,issue_type,fault_nature,fault_cause,issue,status,reporter,report_date,resolved_date")
       .order("report_date", { ascending: false });
 
     data = (fallbackQuery.data ?? []).map((row) => ({
@@ -67,12 +88,27 @@ export async function GET() {
   if (error?.message.includes("handling_method")) {
     const fallbackQuery = await client
       .from("maintenance_records")
-      .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+      .select("id,computer_id,computer_position,issue_type,fault_nature,fault_cause,issue,status,reporter,report_date,resolved_date")
       .order("report_date", { ascending: false });
 
     data = (fallbackQuery.data ?? []).map((row) => ({
       ...row,
       handling_method: "",
+    }));
+    error = fallbackQuery.error;
+  }
+
+  if (error?.message.includes("issue_type") || error?.message.includes("fault_nature") || error?.message.includes("fault_cause")) {
+    const fallbackQuery = await client
+      .from("maintenance_records")
+      .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
+      .order("report_date", { ascending: false });
+
+    data = (fallbackQuery.data ?? []).map((row) => ({
+      ...row,
+      issue_type: "other",
+      fault_nature: "other",
+      fault_cause: "other",
     }));
     error = fallbackQuery.error;
   }
@@ -85,6 +121,9 @@ export async function GET() {
     id: row.id,
     computerId: row.computer_id,
     computerPosition: row.computer_position ?? "",
+    issueType: row.issue_type ?? "other",
+    faultNature: row.fault_nature ?? "other",
+    faultCause: row.fault_cause ?? "other",
     issue: row.issue,
     handlingMethod: row.handling_method ?? "",
     status: row.status,
@@ -119,12 +158,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "完成日期格式应为 YYYY-MM-DD" }, { status: 400 });
   }
 
+  if (body.issueType && !issueTypes.includes(body.issueType)) {
+    return NextResponse.json({ message: "故障现象非法" }, { status: 400 });
+  }
+
+  if (body.faultNature && !faultNatures.includes(body.faultNature)) {
+    return NextResponse.json({ message: "故障性质非法" }, { status: 400 });
+  }
+
+  if (body.faultCause && !faultCauses.includes(body.faultCause)) {
+    return NextResponse.json({ message: "故障原因非法" }, { status: 400 });
+  }
+
   const { data, error } = await client
     .from("maintenance_records")
     .insert([
       {
         computer_id: body.computerId,
         computer_position: body.computerPosition.trim(),
+        issue_type: body.issueType ?? "other",
+        fault_nature: body.faultNature ?? "other",
+        fault_cause: body.faultCause ?? "other",
         issue: body.issue.trim(),
         handling_method: body.handlingMethod?.trim() ?? "",
         status: body.status ?? "pending",
@@ -133,7 +187,7 @@ export async function POST(request: Request) {
         resolved_date: body.resolvedDate?.trim() ? body.resolvedDate : null,
       },
     ])
-    .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
+    .select("id,computer_id,computer_position,issue_type,fault_nature,fault_cause,issue,handling_method,status,reporter,report_date,resolved_date")
     .single();
 
   if (error) {
@@ -143,6 +197,9 @@ export async function POST(request: Request) {
     if (error.message.includes("handling_method")) {
       return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 handling_method 字段" }, { status: 500 });
     }
+    if (error.message.includes("issue_type") || error.message.includes("fault_nature") || error.message.includes("fault_cause")) {
+      return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修分析字段" }, { status: 500 });
+    }
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 
@@ -151,6 +208,9 @@ export async function POST(request: Request) {
       id: data.id,
       computerId: data.computer_id,
       computerPosition: data.computer_position ?? "",
+      issueType: data.issue_type ?? "other",
+      faultNature: data.fault_nature ?? "other",
+      faultCause: data.fault_cause ?? "other",
       issue: data.issue,
       handlingMethod: data.handling_method ?? "",
       status: data.status,

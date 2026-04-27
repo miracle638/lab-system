@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { withBasePath } from "@/lib/base-path";
 import type { UserRole } from "@/lib/types";
 import NavLinks from "./nav-links";
 
@@ -8,6 +9,7 @@ const navItems = [
   { href: "/labs", label: "实验室管理" },
   { href: "/computers", label: "电脑配置管理" },
   { href: "/maintenance", label: "维修记录" },
+  { href: "/maintenance-analysis", label: "维修分析" },
   { href: "/reports", label: "报表统计" },
 ];
 
@@ -22,7 +24,7 @@ export default async function AppLayout({
     <div className="min-h-screen grid lg:grid-cols-[300px_1fr]">
       <aside className="border-r border-emerald-100/80 bg-white/70 px-5 py-6 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen">
         <Link href="/dashboard" className="block rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-cyan-50 px-4 py-4 transition hover:from-emerald-100 hover:to-cyan-100">
-          <p className="text-xl font-bold tracking-tight text-slate-900">实验室资产系统</p>
+          <p className="text-xl font-bold tracking-tight text-slate-900">实验室信息系统</p>
         </Link>
 
         <p className="mt-4 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -34,7 +36,7 @@ export default async function AppLayout({
         </div>
 
         {currentRole === "admin" ? (
-          <form action="/logout" method="post" className="mt-8">
+          <form action={withBasePath("/logout")} method="post" className="mt-8">
             <button
               type="submit"
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"

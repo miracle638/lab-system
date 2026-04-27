@@ -1,10 +1,13 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import type { RepairStatus } from "@/lib/types";
+import type { FaultCause, FaultNature, IssueType, RepairStatus } from "@/lib/types";
 
 type MaintenancePatchPayload = {
   computerPosition?: string;
+  issueType?: IssueType;
+  faultNature?: FaultNature;
+  faultCause?: FaultCause;
   issue?: string;
   handlingMethod?: string;
   status?: RepairStatus;
@@ -12,6 +15,24 @@ type MaintenancePatchPayload = {
   reportDate?: string;
   resolvedDate?: string;
 };
+
+const issueTypes: IssueType[] = [
+  "blue_screen",
+  "black_screen",
+  "monitor_no_display",
+  "monitor_artifact",
+  "reboot_loop",
+  "stuck_logo",
+  "cannot_boot",
+  "slow_performance",
+  "network_issue",
+  "audio_issue",
+  "cannot_power_on",
+  "other",
+];
+
+const faultNatures: FaultNature[] = ["hardware", "software", "other"];
+const faultCauses: FaultCause[] = ["ssd", "hdd", "memory", "mainboard", "fan", "monitor", "power_switch", "os", "other"];
 
 function getSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -50,6 +71,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const patch: Record<string, unknown> = {};
 
   if (body.computerPosition !== undefined) patch.computer_position = body.computerPosition.trim();
+  if (body.issueType !== undefined) {
+    if (!issueTypes.includes(body.issueType)) {
+      return NextResponse.json({ message: "故障现象非法" }, { status: 400 });
+    }
+    patch.issue_type = body.issueType;
+  }
+  if (body.faultNature !== undefined) {
+    if (!faultNatures.includes(body.faultNature)) {
+      return NextResponse.json({ message: "故障性质非法" }, { status: 400 });
+    }
+    patch.fault_nature = body.faultNature;
+  }
+  if (body.faultCause !== undefined) {
+    if (!faultCauses.includes(body.faultCause)) {
+      return NextResponse.json({ message: "故障原因非法" }, { status: 400 });
+    }
+    patch.fault_cause = body.faultCause;
+  }
   if (body.issue !== undefined) patch.issue = body.issue.trim();
   if (body.handlingMethod !== undefined) patch.handling_method = body.handlingMethod.trim();
   if (body.status !== undefined) patch.status = body.status;
@@ -79,7 +118,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .from("maintenance_records")
     .update(patch)
     .eq("id", id)
-    .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date,resolved_date")
+    .select("id,computer_id,computer_position,issue_type,fault_nature,fault_cause,issue,handling_method,status,reporter,report_date,resolved_date")
     .single();
 
   // 如果 resolved_date 列还未添加到数据库，降级为只更新其余字段
@@ -91,7 +130,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         .from("maintenance_records")
         .update(fallbackPatch)
         .eq("id", id)
-        .select("id,computer_id,computer_position,issue,handling_method,status,reporter,report_date")
+        .select("id,computer_id,computer_position,issue_type,fault_nature,fault_cause,issue,handling_method,status,reporter,report_date")
         .single();
       data = fallback.data ? { ...fallback.data, resolved_date: null } : null;
       error = fallback.error;
@@ -109,13 +148,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         .from("maintenance_records")
         .update(fallbackPatch)
         .eq("id", id)
-        .select("id,computer_id,computer_position,issue,status,reporter,report_date,resolved_date")
+        .select("id,computer_id,computer_position,issue_type,fault_nature,fault_cause,issue,status,reporter,report_date,resolved_date")
         .single();
       data = fallback.data ? { ...fallback.data, handling_method: "" } : null;
       error = fallback.error;
     } else {
       return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修记录的 handling_method 字段" }, { status: 500 });
     }
+  }
+
+  if (error?.message.includes("issue_type") || error?.message.includes("fault_nature") || error?.message.includes("fault_cause")) {
+    return NextResponse.json({ message: "请先在 Supabase 执行最新的 supabase/schema.sql，补充维修分析字段" }, { status: 500 });
   }
 
   if (error) {
@@ -137,6 +180,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       id: data.id,
       computerId: data.computer_id,
       computerPosition: data.computer_position ?? "",
+      issueType: data.issue_type ?? "other",
+      faultNature: data.fault_nature ?? "other",
+      faultCause: data.fault_cause ?? "other",
       issue: data.issue,
       handlingMethod: data.handling_method ?? "",
       status: data.status,

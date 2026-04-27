@@ -13,7 +13,7 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "实验室管理系统",
+  title: "实验室信息系统",
   description: "机房实验室设备、状态、维修与报表管理",
 };
 

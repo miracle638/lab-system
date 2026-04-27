@@ -66,6 +66,9 @@ create table if not exists public.maintenance_records (
   id uuid primary key default gen_random_uuid(),
   computer_id uuid not null references public.computers(id) on delete cascade,
   computer_position text not null default '',
+  issue_type text not null check (issue_type in ('blue_screen','black_screen','monitor_no_display','monitor_artifact','reboot_loop','stuck_logo','cannot_boot','slow_performance','network_issue','audio_issue','cannot_power_on','other')) default 'other',
+  fault_nature text not null check (fault_nature in ('hardware','software','other')) default 'other',
+  fault_cause text not null check (fault_cause in ('ssd','hdd','memory','mainboard','fan','monitor','power_switch','os','other')) default 'other',
   issue text not null,
   handling_method text not null default '',
   status text not null check (status in ('pending', 'in_progress', 'done')) default 'pending',
@@ -105,6 +108,29 @@ alter table public.maintenance_records
 
 alter table public.maintenance_records
   add column if not exists handling_method text not null default '';
+
+alter table public.maintenance_records
+  add column if not exists issue_type text not null default 'other';
+
+alter table public.maintenance_records
+  add column if not exists fault_nature text not null default 'other';
+
+alter table public.maintenance_records
+  add column if not exists fault_cause text not null default 'other';
+
+alter table public.maintenance_records
+  drop constraint if exists maintenance_records_issue_type_check;
+
+alter table public.maintenance_records
+  add constraint maintenance_records_issue_type_check
+  check (issue_type in ('blue_screen','black_screen','monitor_no_display','monitor_artifact','reboot_loop','stuck_logo','cannot_boot','slow_performance','network_issue','audio_issue','cannot_power_on','other'));
+
+alter table public.maintenance_records
+  drop constraint if exists maintenance_records_fault_cause_check;
+
+alter table public.maintenance_records
+  add constraint maintenance_records_fault_cause_check
+  check (fault_cause in ('ssd','hdd','memory','mainboard','fan','monitor','power_switch','os','other'));
 
 alter table public.profiles enable row level security;
 alter table public.labs enable row level security;
